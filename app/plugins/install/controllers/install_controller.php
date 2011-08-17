@@ -67,9 +67,16 @@ class InstallController extends InstallAppController {
     function database() {
         $this->pageTitle = __('Step 1: Database', true);
         if (!empty($this->data)) {
+			$check = false;
             // test database connection
-            if (mysql_connect($this->data['Install']['host'], $this->data['Install']['login'], $this->data['Install']['password']) &&
+			if ( $this->data['Install']['driver'] === 'mysql' && mysql_connect($this->data['Install']['host'], $this->data['Install']['login'], $this->data['Install']['password']) &&
                 mysql_select_db($this->data['Install']['database'])) {
+				$check = true ;
+			} else if ( $this->data['Install']['driver'] === 'postgres' && pg_connect("host={$this->data['Install']['host']} port=5432 dbname={$this->data['Install']['database']} user={$this->data['Install']['login']} password={$this->data['Install']['password']}") ) {
+				$check = true ;
+			}
+			
+			if ( $check === true ) {
                 // rename database.php.install
                 rename(APP.'config'.DS.'database.php.install', APP.'config'.DS.'database.php');
 
@@ -79,13 +86,14 @@ class InstallController extends InstallAppController {
                 $content = $file->read();
 
                 // write database.php file
+                $content = str_replace('{default_driver}', $this->data['Install']['driver'], $content);
                 $content = str_replace('{default_host}', $this->data['Install']['host'], $content);
                 $content = str_replace('{default_login}', $this->data['Install']['login'], $content);
                 $content = str_replace('{default_password}', $this->data['Install']['password'], $content);
                 $content = str_replace('{default_database}', $this->data['Install']['database'], $content);
                 // The database import script does not support prefixes at this point
                 $content = str_replace('{default_prefix}', ''/*$this->data['Install']['prefix']*/, $content);
-                
+
                 if($file->write($content) ) {
                     $this->redirect(array('action' => 'data'));
                 } else {
@@ -114,7 +122,7 @@ class InstallController extends InstallAppController {
             if(!$db->isConnected()) {
                 $this->Session->setFlash(__('Could not connect to database.', true));
             } else {
-                $this->__executeSQLScript($db, CONFIGS.'sql'.DS.'dump.sql');
+                $this->__executeSQLScript($db, CONFIGS.'sql'.DS.$db->config['driver'].'.sql');
                 $this->__updateData(); //translate names
                 $this->redirect(array('action' => 'finish'));
                 exit();

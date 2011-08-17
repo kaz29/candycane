@@ -219,8 +219,10 @@ class Project extends AppModel
       $this->bindModel(array('hasMany' => array('EnabledModule')), false);
       $enabledModuleTable =  $this->EnabledModule->tablePrefix . $this->EnabledModule->table;
       $emName = $perm['project_module'];
-
-      $base_statement[] = array("EXISTS (SELECT em.id FROM $enabledModuleTable em WHERE em.name='$emName' AND em.project_id=$projectTable.id)" => true);
+			
+			$ds =& $this->getDataSource();
+			$project_id_field = $ds->name("{$projectTable}.id");
+      $base_statement[] = array("EXISTS (SELECT em.id FROM $enabledModuleTable em WHERE em.name='$emName' AND em.project_id={$project_id_field})" => true);
     }
     if(!empty($options['project'])) {
       $project_statement = array();
@@ -271,7 +273,9 @@ class Project extends AppModel
     $perm = $Permission->findByName($permission);
     if(!empty($perm['project_module'])) {
       # If the permission belongs to a project module, make sure the module is enabled
-      $base_statement .= " AND EXISTS (SELECT em.id FROM {$enabled_module_table_name} em WHERE em.name='{$perm['project_module']}' AND em.project_id=Project.id)";
+			$ds =& $this->getDataSource();
+			$project_id_field = $ds->name("Project.id");
+      $base_statement .= " AND EXISTS (SELECT em.id FROM {$enabled_module_table_name} em WHERE em.name='{$perm['project_module']}' AND em.project_id={$project_id_field})";
     }
 // TimelogController not specify $options    
 #    if(isset($options['project'])) {
